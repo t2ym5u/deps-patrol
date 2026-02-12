@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build
+dist
+dist-ssr
+*.tsbuildinfo
+
+# Test
+coverage
+__screenshots__/
+
+# Local config (contains user-specific paths)
+deps-patrol.config.json
+deps-patrol.json
+*.local

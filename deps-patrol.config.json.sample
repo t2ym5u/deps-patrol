@@ -1,0 +1,7 @@
+{
+  "debug": false,
+  "dryRun": false,
+  "format": "json",
+  "projects": "<path to projects.json>",
+  "output": "./deps-patrol.json"
+}
