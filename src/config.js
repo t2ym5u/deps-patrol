@@ -5,6 +5,7 @@ const config = JSON.parse(readFileSync("./deps-patrol.config.json", "utf-8"));
 const cliArgs = process.argv.slice(2);
 
 export const DEBUG = cliArgs.includes("--debug") || (config.debug ?? false);
+export const LOGLEVEL = config.logLevel ?? "info"; // @TODO: use this to control log verbosity
 export const DRY_RUN = cliArgs.includes("--dry-run") || (config.dryRun ?? false);
 export const projectFilePath = config.projects;
 export const output = config.output ?? "./deps-patrol.json";

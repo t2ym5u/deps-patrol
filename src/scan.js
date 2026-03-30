@@ -92,16 +92,14 @@ function getAuditVulnerabilities(rootPath, packageManager) {
   // npm v6 / pnpm format
   if (audit.advisories) {
     return Object.values(audit.advisories).filter(
-      (adv) => adv.severity === "high" || adv.severity === "critical",
+      (adv) => adv.severity === "high" || adv.severity === "critical"
     );
   }
 
   // npm v7+ format
   if (audit.vulnerabilities) {
     return Object.values(audit.vulnerabilities)
-      .filter(
-        (vuln) => vuln.severity === "high" || vuln.severity === "critical",
-      )
+      .filter((vuln) => vuln.severity === "high" || vuln.severity === "critical")
       .map((vuln) => ({
         module_name: vuln.name,
         severity: vuln.severity,
@@ -120,12 +118,10 @@ function analyzeOutdatedPackages(outdated) {
     log(`    - ${pkg}: ${info.current} -> ${info.latest}`);
 
     const hasMajorUpdate =
-      Number(info?.current?.split(".")?.[0]) <
-      Number(info?.latest?.split(".")?.[0]);
+      Number(info?.current?.split(".")?.[0]) < Number(info?.latest?.split(".")?.[0]);
 
     const needsAttention =
-      info.dependencyType === "dependencies" &&
-      (info.isDeprecated || hasMajorUpdate);
+      info.dependencyType === "dependencies" && (info.isDeprecated || hasMajorUpdate);
 
     if (needsAttention) {
       hasMajorOrDeprecated = true;
@@ -138,29 +134,19 @@ function analyzeOutdatedPackages(outdated) {
 
 function logVulnerabilities(vulnerabilities) {
   if (vulnerabilities.length > 0) {
-    log(
-      `    ⚠️  ${vulnerabilities.length} high/critical vulnerabilities found!`,
-    );
+    log(`    ⚠️  ${vulnerabilities.length} high/critical vulnerabilities found!`);
     for (const vuln of vulnerabilities) {
-      log(
-        `      - [${vuln.severity}] ${vuln.module_name}: ${vuln.title} (${vuln.url})`,
-      );
+      log(`      - [${vuln.severity}] ${vuln.module_name}: ${vuln.title} (${vuln.url})`);
     }
   } else {
     log("    ✅ No high or critical vulnerabilities found!");
   }
 }
 
-function computeStatus(
-  hasVulnerabilities,
-  outdatedCount,
-  hasMajorOrDeprecated,
-) {
+function computeStatus(hasVulnerabilities, outdatedCount, hasMajorOrDeprecated) {
   if (hasVulnerabilities) return statuses.VULNERABILITIES;
   if (outdatedCount === 0) return statuses.NO_UPDATES;
-  return hasMajorOrDeprecated
-    ? statuses.MAJOR_UPDATES
-    : statuses.MINOR_OR_PATCH_UPDATES;
+  return hasMajorOrDeprecated ? statuses.MAJOR_UPDATES : statuses.MINOR_OR_PATCH_UPDATES;
 }
 
 function scanProject(project) {
@@ -186,9 +172,7 @@ function scanProject(project) {
     return;
   }
 
-  const pkgJson = JSON.parse(
-    readFileSync(`${project.rootPath}/package.json`, "utf-8"),
-  );
+  const pkgJson = JSON.parse(readFileSync(`${project.rootPath}/package.json`, "utf-8"));
   const packageManager = getPackageManager(project.rootPath, pkgJson);
 
   log("  ⚡️ Outdated packages:");
@@ -199,22 +183,24 @@ function scanProject(project) {
   log(
     hasMajorOrDeprecated
       ? "    ⚠️  Some packages need attention!"
-      : "    ✅ All packages are up to date!",
+      : "    ✅ All packages are up to date!"
   );
 
-  const vulnerabilities = getAuditVulnerabilities(
-    project.rootPath,
-    packageManager,
-  );
+  const vulnerabilities = getAuditVulnerabilities(project.rootPath, packageManager);
   logVulnerabilities(vulnerabilities);
 
   const status = computeStatus(
     vulnerabilities.length > 0,
     Object.keys(outdated).length,
-    hasMajorOrDeprecated,
+    hasMajorOrDeprecated
   );
+
+  if (status !== oldStatus) {
+    log(`  Status changed: ${oldStatus} → ${status}`);
+  }
+
   project.name = [status, projectName, pkgJson.version].join(separator);
-  log(`  → ${project.name}`);
+  // log(`  → ${project.name}`);
 }
 
 for (const project of projects) {
