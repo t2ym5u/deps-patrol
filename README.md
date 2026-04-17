@@ -1,4 +1,4 @@
-# deps-patrol
+# deps-patrol v1.1.0
 
 Scan project dependencies for outdated packages and vulnerabilities across multiple projects.
 
@@ -26,7 +26,11 @@ Edit `deps-patrol.config.json` to point to your `projects.json` file:
 ```json
 {
   "debug": false,
+  "logLevel": "info",
   "dryRun": false,
+  "format": "json",
+  "concurrency": 4,
+  "branch": "main",
   "projects": "/path/to/projects.json",
   "output": "./deps-patrol.json"
 }
@@ -44,9 +48,27 @@ pnpm run scan -- --debug
 # Dry run (no file changes)
 pnpm run scan -- --dry-run
 
+# Override branch
+pnpm run scan -- --branch=main
+
+# Change output format (json | csv | html)
+pnpm run scan -- --format=html
+
+# Set concurrency (default: 4)
+pnpm run scan -- --concurrency=8
+
 # Remove status indicators from project names
 pnpm run clean
 ```
+
+| Config option | CLI flag | Default |
+|---|---|---|
+| `logLevel` | — | `"info"` (`error` \| `warn` \| `info` \| `debug`) |
+| `debug` | `--debug` | `false` |
+| `dryRun` | `--dry-run` | `false` |
+| `format` | `--format` | `"json"` |
+| `concurrency` | `--concurrency` | `4` |
+| `branch` | `--branch` | current branch |
 
 ## License
 

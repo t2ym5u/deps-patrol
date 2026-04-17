@@ -1,7 +1,9 @@
 {
   "debug": false,
+  "logLevel": "warn",
   "dryRun": false,
   "format": "json",
+  "concurrency": 4,
   "projects": "<path to projects.json>",
   "output": "./deps-patrol.json"
 }
