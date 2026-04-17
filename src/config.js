@@ -4,9 +4,7 @@ const CONFIG_PATH = "./deps-patrol.config.json";
 
 if (!existsSync(CONFIG_PATH)) {
   console.error(`❌ Config file not found: ${CONFIG_PATH}`);
-  console.error(
-    "   Run: cp deps-patrol.config.json.sample deps-patrol.config.json",
-  );
+  console.error("   Run: cp deps-patrol.config.json.sample deps-patrol.config.json");
   process.exit(1);
 }
 
@@ -70,8 +68,7 @@ export function log(level, ...args) {
   }
 }
 
-export const DRY_RUN =
-  cliArgs.includes("--dry-run") || (config.dryRun ?? false);
+export const DRY_RUN = cliArgs.includes("--dry-run") || (config.dryRun ?? false);
 
 const branchArg = cliArgs.find((a) => a.startsWith("--branch="));
 const branchFlagIdx = cliArgs.indexOf("--branch");
@@ -85,8 +82,7 @@ const formatArg = cliArgs.find((a) => a.startsWith("--format="));
 export const FORMAT = formatArg?.split("=")?.[1] ?? config.format ?? "json";
 
 const concurrencyArg = cliArgs.find((a) => a.startsWith("--concurrency="));
-const rawConcurrency =
-  concurrencyArg?.split("=")?.[1] ?? config.concurrency ?? 4;
+const rawConcurrency = concurrencyArg?.split("=")?.[1] ?? config.concurrency ?? 4;
 export const CONCURRENCY = Math.max(1, Number(rawConcurrency) || 4);
 
 export const projectFilePath = config.projects;

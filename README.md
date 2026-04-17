@@ -1,16 +1,16 @@
-# deps-patrol v1.1.0
+# deps-patrol v1.2.0
 
 Scan project dependencies for outdated packages and vulnerabilities across multiple projects.
 
 Reads the project list from [VS Code Project Manager](https://marketplace.visualstudio.com/items?itemName=alefragnani.project-manager) and updates each project name with a status indicator:
 
-| Status | Meaning |
-|--------|---------|
-| ⚪️ | No `package.json` found |
-| 🟢 | All dependencies up to date |
-| 🟡 | Minor or patch updates available |
-| 🟠 | Major updates or deprecated packages |
-| 🔴 | High/critical vulnerabilities detected |
+| Status | Meaning                                |
+| ------ | -------------------------------------- |
+| ⚪️     | No `package.json` found                |
+| 🟢     | All dependencies up to date            |
+| 🟡     | Minor or patch updates available       |
+| 🟠     | Major updates or deprecated packages   |
+| 🔴     | High/critical vulnerabilities detected |
 
 Supports **npm**, **yarn**, **pnpm**, and **bun** (auto-detected per project).
 
@@ -61,14 +61,14 @@ pnpm run scan -- --concurrency=8
 pnpm run clean
 ```
 
-| Config option | CLI flag | Default |
-|---|---|---|
-| `logLevel` | — | `"info"` (`error` \| `warn` \| `info` \| `debug`) |
-| `debug` | `--debug` | `false` |
-| `dryRun` | `--dry-run` | `false` |
-| `format` | `--format` | `"json"` |
-| `concurrency` | `--concurrency` | `4` |
-| `branch` | `--branch` | current branch |
+| Config option | CLI flag        | Default                                           |
+| ------------- | --------------- | ------------------------------------------------- |
+| `logLevel`    | —               | `"info"` (`error` \| `warn` \| `info` \| `debug`) |
+| `debug`       | `--debug`       | `false`                                           |
+| `dryRun`      | `--dry-run`     | `false`                                           |
+| `format`      | `--format`      | `"json"`                                          |
+| `concurrency` | `--concurrency` | `4`                                               |
+| `branch`      | `--branch`      | current branch                                    |
 
 ## License
 
