@@ -15,6 +15,7 @@ import {
   BRANCH,
   CONCURRENCY,
   DRY_RUN,
+  FILTER,
   FORMAT,
   log,
   output,
@@ -26,7 +27,10 @@ import { statuses } from "./statuses.js";
 import {
   analyzeOutdatedPackages,
   computeStatus,
+  getInstallArgs,
   getPackageManager,
+  hasTestScript,
+  matchesProjectFilter,
   normalizeOutdated,
   parseNdjson,
   parseYarnOutdated,
@@ -35,6 +39,8 @@ import {
 
 const execFileAsync = promisify(execFile);
 const SPAWN_TIMEOUT = 120_000;
+const INSTALL_TIMEOUT = 300_000;
+const TEST_TIMEOUT = 300_000;
 
 // Track active worktrees for cleanup on unexpected exit
 const activeWorktrees = new Map();
@@ -42,7 +48,9 @@ const activeWorktrees = new Map();
 function cleanupWorktrees() {
   for (const [worktreePath, repoPath] of activeWorktrees) {
     try {
-      spawnSync("git", ["worktree", "remove", "--force", worktreePath], { cwd: repoPath });
+      spawnSync("git", ["worktree", "remove", "--force", worktreePath], {
+        cwd: repoPath,
+      });
       rmSync(worktreePath, { recursive: true, force: true });
     } catch {}
   }
@@ -74,7 +82,9 @@ function createWorktree(repoPath, branch) {
 }
 
 function removeWorktree(repoPath, worktreePath) {
-  spawnSync("git", ["worktree", "remove", "--force", worktreePath], { cwd: repoPath });
+  spawnSync("git", ["worktree", "remove", "--force", worktreePath], {
+    cwd: repoPath,
+  });
   rmSync(worktreePath, { recursive: true, force: true });
   activeWorktrees.delete(worktreePath);
 }
@@ -157,12 +167,53 @@ async function getAuditVulnerabilities(rootPath, packageManager) {
   return [];
 }
 
-async function analyzeProject(scanPath, packageManager) {
-  log("debug", "  ⚡️ Running outdated + audit in parallel...");
+async function installDependencies(scanPath, packageManager) {
+  const args = getInstallArgs(packageManager, existsSync(`${scanPath}/package-lock.json`));
+  try {
+    await execFileAsync(packageManager, args, {
+      cwd: scanPath,
+      timeout: INSTALL_TIMEOUT,
+    });
+    return true;
+  } catch (err) {
+    log(
+      "warn",
+      `  ⚠️  ${packageManager} install failed: ${err.stderr?.toString().trim() || err.message}`
+    );
+    return false;
+  }
+}
 
-  const [outdated, vulnerabilities] = await Promise.all([
+async function runTests(scanPath, packageManager, pkgJson, needsInstall) {
+  if (!hasTestScript(pkgJson)) return { skipped: true, passed: null };
+
+  if (needsInstall) {
+    log("debug", "  📦 Installing dependencies for test run...");
+    const installed = await installDependencies(scanPath, packageManager);
+    if (!installed) return { skipped: false, passed: false };
+  }
+
+  try {
+    await execFileAsync(packageManager, ["test"], {
+      cwd: scanPath,
+      timeout: TEST_TIMEOUT,
+    });
+    return { skipped: false, passed: true };
+  } catch (err) {
+    if (err.code === "ETIMEDOUT") {
+      log("warn", `  ⚠️  ${packageManager} test timed out after ${TEST_TIMEOUT / 1000}s`);
+    }
+    return { skipped: false, passed: false };
+  }
+}
+
+async function analyzeProject(scanPath, packageManager, pkgJson, needsInstall) {
+  log("debug", "  ⚡️ Running outdated + audit + tests in parallel...");
+
+  const [outdated, vulnerabilities, testResult] = await Promise.all([
     getOutdatedPackages(scanPath, packageManager),
     getAuditVulnerabilities(scanPath, packageManager),
+    runTests(scanPath, packageManager, pkgJson, needsInstall),
   ]);
 
   const outdatedCount = Object.keys(outdated).length;
@@ -173,12 +224,13 @@ async function analyzeProject(scanPath, packageManager) {
   }
 
   const hasMajorOrDeprecated = analyzeOutdatedPackages(outdated);
-  log(
-    "info",
-    hasMajorOrDeprecated
-      ? "    ⚠️  Some packages need attention!"
-      : "    ✅ All packages are up to date!"
-  );
+  const condtion =
+    outdatedCount === 0
+      ? "✅ All packages are up to date!"
+      : hasMajorOrDeprecated
+        ? "⚠️  Some packages need attention!"
+        : "🟡 Minor/patch updates available";
+  log("info", `    ${condtion}`);
 
   if (vulnerabilities.length > 0) {
     log("info", `    ⚠️  ${vulnerabilities.length} high/critical vulnerabilities found!`);
@@ -189,7 +241,20 @@ async function analyzeProject(scanPath, packageManager) {
     log("info", "    ✅ No high or critical vulnerabilities found!");
   }
 
-  return { outdated, hasMajorOrDeprecated, vulnerabilities };
+  if (testResult.skipped) {
+    log("info", "    ⏭️  No test script found, skipping tests");
+  } else if (testResult.passed) {
+    log("info", "    ✅ Tests passed");
+  } else {
+    log("info", "    🔥 Tests failed!");
+  }
+
+  return {
+    outdated,
+    hasMajorOrDeprecated,
+    vulnerabilities,
+    testsFailed: testResult.passed === false,
+  };
 }
 
 function resolveWorktree(rootPath, branch) {
@@ -197,7 +262,10 @@ function resolveWorktree(rootPath, branch) {
   const worktreePath = createWorktree(rootPath, branch);
   if (worktreePath) return { worktreePath, usedBranch: branch };
   if (!fallback) return { worktreePath: null, usedBranch: branch };
-  return { worktreePath: createWorktree(rootPath, fallback), usedBranch: fallback };
+  return {
+    worktreePath: createWorktree(rootPath, fallback),
+    usedBranch: fallback,
+  };
 }
 
 function setupScanPath(rootPath, branch) {
@@ -211,7 +279,7 @@ function setupScanPath(rootPath, branch) {
   return { scanPath: rootPath, worktreePath: null };
 }
 
-async function runScan(project, scanPath, branch, oldStatus, projectName) {
+async function runScan(project, scanPath, branch, oldStatus, projectName, isWorktree) {
   if (!existsSync(`${scanPath}/package.json`)) {
     project.name = [oldStatus, projectName].join(separator);
     log("info", "  No package.json found, skipping...");
@@ -227,12 +295,15 @@ async function runScan(project, scanPath, branch, oldStatus, projectName) {
   }
 
   const packageManager = getPackageManager(scanPath, pkgJson);
-  const { outdated, hasMajorOrDeprecated, vulnerabilities } = await analyzeProject(
+  const { outdated, hasMajorOrDeprecated, vulnerabilities, testsFailed } = await analyzeProject(
     scanPath,
-    packageManager
+    packageManager,
+    pkgJson,
+    isWorktree
   );
 
   const status = computeStatus(
+    testsFailed,
     vulnerabilities.length > 0,
     Object.keys(outdated).length,
     hasMajorOrDeprecated,
@@ -266,7 +337,7 @@ async function scanProject(project) {
   const { scanPath, worktreePath } = setupScanPath(project.rootPath, branch);
 
   try {
-    await runScan(project, scanPath, branch, oldStatus, projectName);
+    await runScan(project, scanPath, branch, oldStatus, projectName, Boolean(worktreePath));
   } finally {
     if (worktreePath) removeWorktree(project.rootPath, worktreePath);
   }
@@ -295,7 +366,15 @@ try {
   process.exit(1);
 }
 
-const tasks = projects.map((project) => () => scanProject(project));
+const projectsToScan = FILTER
+  ? projects.filter((project) => matchesProjectFilter(project.name, FILTER, separator))
+  : projects;
+
+if (FILTER) {
+  log("info", `🔍 Filter: "${FILTER}" (${projectsToScan.length}/${projects.length} project(s))`);
+}
+
+const tasks = projectsToScan.map((project) => () => scanProject(project));
 await runWithConcurrency(tasks, CONCURRENCY);
 
 if (!DRY_RUN && !BRANCH) {

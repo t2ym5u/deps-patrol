@@ -11,8 +11,15 @@ Reads the project list from [VS Code Project Manager](https://marketplace.visual
 | 🟡     | Minor or patch updates available       |
 | 🟠     | Major updates or deprecated packages   |
 | 🔴     | High/critical vulnerabilities detected |
+| 🔥     | Test suite failed                      |
 
 Supports **npm**, **yarn**, **pnpm**, and **bun** (auto-detected per project).
+
+If a project defines a `test` script (other than npm's default placeholder), it is run
+after the dependency scan to confirm the project still works. When scanning a branch
+other than the project's current checkout, deps-patrol runs a clean install
+(`npm ci` / `<pm> install --frozen-lockfile`) in the temporary worktree first, since it
+has no `node_modules`. A failing test suite takes priority over every other status.
 
 ## Setup
 
@@ -57,6 +64,9 @@ pnpm run scan -- --format=html
 # Set concurrency (default: 4)
 pnpm run scan -- --concurrency=8
 
+# Only scan projects whose name contains "api" (case-insensitive)
+pnpm run scan -- --filter=api
+
 # Remove status indicators from project names
 pnpm run clean
 ```
@@ -69,6 +79,11 @@ pnpm run clean
 | `format`      | `--format`      | `"json"`                                          |
 | `concurrency` | `--concurrency` | `4`                                               |
 | `branch`      | `--branch`      | current branch                                    |
+| `filter`      | `--filter`      | none (scans all projects)                         |
+
+## Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for planned/considered features.
 
 ## License
 

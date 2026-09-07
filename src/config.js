@@ -37,6 +37,7 @@ Options:
   --branch=<name>      Override branch to scan (e.g. --branch=main)
   --format=<fmt>       Output format: json (default), csv, html
   --concurrency=<n>    Number of projects to scan in parallel (default: 4)
+  --filter=<name>      Only scan projects whose name contains <name> (case-insensitive)
   -h, --help           Show this help message
 
 Config file: deps-patrol.config.json
@@ -46,6 +47,7 @@ Config file: deps-patrol.config.json
     "dryRun": false,
     "format": "json",       // json | csv | html
     "concurrency": 4,
+    "filter": null,
     "projects": "/path/to/projects.json",
     "output": "./deps-patrol.json"
   }
@@ -84,6 +86,9 @@ export const FORMAT = formatArg?.split("=")?.[1] ?? config.format ?? "json";
 const concurrencyArg = cliArgs.find((a) => a.startsWith("--concurrency="));
 const rawConcurrency = concurrencyArg?.split("=")?.[1] ?? config.concurrency ?? 4;
 export const CONCURRENCY = Math.max(1, Number(rawConcurrency) || 4);
+
+const filterArg = cliArgs.find((a) => a.startsWith("--filter="));
+export const FILTER = filterArg?.split("=")?.[1] ?? config.filter ?? null;
 
 export const projectFilePath = config.projects;
 export const output = config.output ?? "./deps-patrol.json";

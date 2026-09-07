@@ -5,6 +5,9 @@ import { statuses } from "./statuses.js";
 import {
   analyzeOutdatedPackages,
   computeStatus,
+  getInstallArgs,
+  hasTestScript,
+  matchesProjectFilter,
   normalizeOutdated,
   parseNdjson,
   parseYarnOutdated,
@@ -138,22 +141,85 @@ describe("analyzeOutdatedPackages", () => {
 
 describe("computeStatus", () => {
   it("returns VULNERABILITIES when vulnerabilities present", () => {
-    assert.equal(computeStatus(true, 2, false, statuses), statuses.VULNERABILITIES);
+    assert.equal(computeStatus(false, true, 2, false, statuses), statuses.VULNERABILITIES);
   });
 
   it("returns NO_UPDATES when no outdated packages", () => {
-    assert.equal(computeStatus(false, 0, false, statuses), statuses.NO_UPDATES);
+    assert.equal(computeStatus(false, false, 0, false, statuses), statuses.NO_UPDATES);
   });
 
   it("returns MAJOR_UPDATES when major updates present", () => {
-    assert.equal(computeStatus(false, 3, true, statuses), statuses.MAJOR_UPDATES);
+    assert.equal(computeStatus(false, false, 3, true, statuses), statuses.MAJOR_UPDATES);
   });
 
   it("returns MINOR_OR_PATCH_UPDATES when only minor/patch updates", () => {
-    assert.equal(computeStatus(false, 2, false, statuses), statuses.MINOR_OR_PATCH_UPDATES);
+    assert.equal(computeStatus(false, false, 2, false, statuses), statuses.MINOR_OR_PATCH_UPDATES);
   });
 
   it("prioritizes vulnerabilities over major updates", () => {
-    assert.equal(computeStatus(true, 3, true, statuses), statuses.VULNERABILITIES);
+    assert.equal(computeStatus(false, true, 3, true, statuses), statuses.VULNERABILITIES);
+  });
+
+  it("returns TESTS_FAILED when tests failed", () => {
+    assert.equal(computeStatus(true, false, 0, false, statuses), statuses.TESTS_FAILED);
+  });
+
+  it("prioritizes TESTS_FAILED over vulnerabilities", () => {
+    assert.equal(computeStatus(true, true, 3, true, statuses), statuses.TESTS_FAILED);
+  });
+});
+
+describe("hasTestScript", () => {
+  it("returns true when a test script is defined", () => {
+    assert.equal(hasTestScript({ scripts: { test: "vitest run" } }), true);
+  });
+
+  it("returns false when no scripts field is present", () => {
+    assert.equal(hasTestScript({}), false);
+  });
+
+  it("returns false for npm's default placeholder test script", () => {
+    assert.equal(
+      hasTestScript({ scripts: { test: 'echo "Error: no test specified" && exit 1' } }),
+      false
+    );
+  });
+});
+
+describe("getInstallArgs", () => {
+  it("returns ci for npm when a lockfile is present", () => {
+    assert.deepEqual(getInstallArgs("npm", true), ["ci"]);
+  });
+
+  it("returns install for npm when no lockfile is present", () => {
+    assert.deepEqual(getInstallArgs("npm", false), ["install"]);
+  });
+
+  it("returns frozen-lockfile install for yarn/pnpm/bun", () => {
+    assert.deepEqual(getInstallArgs("yarn", true), ["install", "--frozen-lockfile"]);
+    assert.deepEqual(getInstallArgs("pnpm", true), ["install", "--frozen-lockfile"]);
+    assert.deepEqual(getInstallArgs("bun", true), ["install", "--frozen-lockfile"]);
+  });
+});
+
+describe("matchesProjectFilter", () => {
+  const separator = "  ";
+
+  it("returns true when no filter is set", () => {
+    assert.equal(matchesProjectFilter("🟢  my-app", null, separator), true);
+  });
+
+  it("matches a substring of the project name, case-insensitively", () => {
+    assert.equal(matchesProjectFilter("🟢  My-App  1.0.0", "my-app", separator), true);
+    assert.equal(matchesProjectFilter("🟢  My-App  1.0.0", "APP", separator), true);
+  });
+
+  it("returns false when the filter does not match", () => {
+    assert.equal(matchesProjectFilter("🟢  my-app  1.0.0", "other", separator), false);
+  });
+
+  it("falls back to the raw name when there is no status prefix", () => {
+    assert.equal(matchesProjectFilter("my-app", "app", separator), true);
+    assert.equal(matchesProjectFilter("my-app", "other", separator), false);
   });
 });

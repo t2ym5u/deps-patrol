@@ -4,4 +4,5 @@ export const statuses = {
   MINOR_OR_PATCH_UPDATES: "🟡",
   MAJOR_UPDATES: "🟠",
   VULNERABILITIES: "🔴",
+  TESTS_FAILED: "🔥",
 };

@@ -67,8 +67,34 @@ export function analyzeOutdatedPackages(outdated) {
   return hasMajorOrDeprecated;
 }
 
-export function computeStatus(hasVulnerabilities, outdatedCount, hasMajorOrDeprecated, statuses) {
+export function computeStatus(
+  testsFailed,
+  hasVulnerabilities,
+  outdatedCount,
+  hasMajorOrDeprecated,
+  statuses
+) {
+  if (testsFailed) return statuses.TESTS_FAILED;
   if (hasVulnerabilities) return statuses.VULNERABILITIES;
   if (outdatedCount === 0) return statuses.NO_UPDATES;
   return hasMajorOrDeprecated ? statuses.MAJOR_UPDATES : statuses.MINOR_OR_PATCH_UPDATES;
+}
+
+export function hasTestScript(pkgJson) {
+  const script = pkgJson.scripts?.test;
+  return Boolean(script) && !script.includes("no test specified");
+}
+
+export function getInstallArgs(packageManager, hasNpmLockfile) {
+  if (packageManager === "npm") return hasNpmLockfile ? ["ci"] : ["install"];
+  return ["install", "--frozen-lockfile"];
+}
+
+export function matchesProjectFilter(name, filter, separator) {
+  if (!filter) return true;
+
+  const parts = name?.split(separator) ?? [];
+  const projectName = parts.length >= 2 ? parts[1] : (name ?? "");
+
+  return projectName.toLowerCase().includes(filter.toLowerCase());
 }
